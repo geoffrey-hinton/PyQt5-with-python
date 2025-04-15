@@ -1,126 +1,99 @@
 import sys
-from PyQt5.QtWidgets import (
-    QApplication, QWidget, QListWidget, QPushButton,
-    QVBoxLayout, QHBoxLayout, QLabel, QScrollArea, QMessageBox
-)
+from PyQt5.QtWidgets import QApplication, QWidget, QListWidget, QVBoxLayout, QHBoxLayout, QPushButton, QComboBox, QLabel
 
-class DistrictGrouper(QWidget):
+class DistrictGroupApp(QWidget):
     def __init__(self):
         super().__init__()
-        self.setWindowTitle("서울 구 그룹 나누기")
-        self.setGeometry(100, 100, 800, 600)
+
+        self.setWindowTitle("서울 구 분류")
+        self.setGeometry(100, 100, 600, 400)
+        self.group_list = []
 
         self.all_districts = [
-            "종로구", "중구", "용산구", "성동구", "광진구", "동대문구", "중랑구", "성북구",
-            "강북구", "도봉구", "노원구", "은평구", "서대문구", "마포구", "양천구", "강서구",
-            "구로구", "금천구", "영등포구", "동작구", "관악구", "서초구", "강남구", "송파구", "강동구"
+            "강남구", "강동구", "강북구", "강서구", "관악구", "광진구", "구로구", "금천구",
+            "노원구", "도봉구", "동대문구", "동작구", "마포구", "서대문구", "서초구", "성동구",
+            "성북구", "송파구", "양천구", "영등포구", "용산구", "은평구", "종로구", "중구", "중랑구"
         ]
 
-        self.group_count = 0
-        self.group_area_widgets = {}
+        # UI 요소들
+        self.all_district_list = QListWidget()  # 전체 구 리스트
+        self.group_area_combobox = QComboBox()  # 그룹 선택 콤보박스
+        self.group_area_combobox.addItems(["서울1", "서울2", "서울3", "서울4"])
 
-        self.setup_ui()
+        self.group_area_widgets = {
+            "서울1": QListWidget(),
+            "서울2": QListWidget(),
+            "서울3": QListWidget(),
+            "서울4": QListWidget()
+        }
 
-    def setup_ui(self):
-        main_layout = QVBoxLayout()
+        self.add_button = QPushButton("구 선택 → 그룹 추가")
+        self.finish_button = QPushButton("완료")
+        self.finish_button.setEnabled(False)
 
-        # 전체 구 리스트
-        self.all_district_list = QListWidget()
+        # 레이아웃 설정
+        self.init_ui()
+
+    def init_ui(self):
+        # 전체 구 리스트 채우기
         self.all_district_list.addItems(self.all_districts)
-        main_layout.addWidget(QLabel("전체 구 목록"))
-        main_layout.addWidget(self.all_district_list)
 
-        # 그룹 추가 버튼
-        self.add_group_button = QPushButton("그룹 추가")
-        self.add_group_button.clicked.connect(self.add_group)
-        main_layout.addWidget(self.add_group_button)
+        # 레이아웃 설정
+        left_layout = QVBoxLayout()
+        left_layout.addWidget(QLabel("전체 구 리스트"))
+        left_layout.addWidget(self.all_district_list)
 
-        # 그룹 표시 영역 (스크롤 가능)
-        self.group_area = QVBoxLayout()
-        scroll_area_widget = QWidget()
-        scroll_area_widget.setLayout(self.group_area)
-        scroll_area = QScrollArea()
-        scroll_area.setWidgetResizable(True)
-        scroll_area.setWidget(scroll_area_widget)
-        main_layout.addWidget(scroll_area)
+        right_layout = QVBoxLayout()
+        right_layout.addWidget(QLabel("그룹 선택"))
+        right_layout.addWidget(self.group_area_combobox)
+        right_layout.addWidget(QLabel("그룹 리스트"))
+        for group_name, widget in self.group_area_widgets.items():
+            right_layout.addWidget(widget)
 
-        # 아래쪽 버튼들
         bottom_layout = QHBoxLayout()
-        self.move_button = QPushButton("→ 그룹으로 이동")
-        self.remove_button = QPushButton("← 그룹에서 제거")
-        self.complete_button = QPushButton("완료")
-        self.complete_button.setEnabled(False)
+        bottom_layout.addWidget(self.add_button)
+        bottom_layout.addWidget(self.finish_button)
 
-        self.move_button.clicked.connect(self.move_to_group)
-        self.remove_button.clicked.connect(self.move_selected_gu_to_main_list)
-        self.complete_button.clicked.connect(self.on_complete)
-
-        bottom_layout.addWidget(self.move_button)
-        bottom_layout.addWidget(self.remove_button)
-        bottom_layout.addWidget(self.complete_button)
-
+        main_layout = QHBoxLayout()
+        main_layout.addLayout(left_layout)
+        main_layout.addLayout(right_layout)
         main_layout.addLayout(bottom_layout)
 
         self.setLayout(main_layout)
 
-    def add_group(self):
-        self.group_count += 1
-        group_name = f"서울{self.group_count}"
-        group_label = QLabel(group_name)
-        group_list = QListWidget()
+        # 버튼 연결
+        self.add_button.clicked.connect(self.move_selected_gu_to_group)
+        self.finish_button.clicked.connect(self.finish_grouping)
 
-        self.group_area_widgets[group_name] = group_list
-
-        container = QVBoxLayout()
-        container.addWidget(group_label)
-        container.addWidget(group_list)
-        self.group_area.addLayout(container)
-
-    def move_to_group(self):
+    def move_selected_gu_to_group(self):
         selected_items = self.all_district_list.selectedItems()
-        if not selected_items:
-            return
+        if selected_items:
+            gu = selected_items[0].text()
+            group_name = self.group_area_combobox.currentText()
 
-        # 가장 최근에 추가된 그룹으로 이동
-        if not self.group_area_widgets:
-            return
+            # 그룹에 추가
+            self.group_area_widgets[group_name].addItem(gu)
+            # 전체 리스트에서 제거
+            self.all_district_list.takeItem(self.all_district_list.row(selected_items[0]))
 
-        last_group = list(self.group_area_widgets.keys())[-1]
-        group_widget = self.group_area_widgets[last_group]
-
-        for item in selected_items:
-            gu = item.text()
-            group_widget.addItem(gu)
-            self.all_district_list.takeItem(self.all_district_list.row(item))
-
-        self.check_if_all_districts_assigned()
-
-    def move_selected_gu_to_main_list(self):
-        for group_name, widget in self.group_area_widgets.items():
-            selected_items = widget.selectedItems()
-            for item in selected_items:
-                gu = item.text()
-                # 전체 리스트에 다시 추가
-                self.all_district_list.addItem(gu)
-                # 그룹에서 제거
-                widget.takeItem(widget.row(item))
-
-        self.check_if_all_districts_assigned()
+            self.check_if_all_districts_assigned()
 
     def check_if_all_districts_assigned(self):
-        total_assigned = sum(widget.count() for widget in self.group_area_widgets.values())
-        self.complete_button.setEnabled(total_assigned == len(self.all_districts))
+        total_selected = sum(group.count() for group in self.group_area_widgets.values())
+        if total_selected == len(self.all_districts):
+            self.finish_button.setEnabled(True)
+        else:
+            self.finish_button.setEnabled(False)
 
-    def on_complete(self):
-        result = {}
-        for group_name, widget in self.group_area_widgets.items():
-            result[group_name] = [widget.item(i).text() for i in range(widget.count())]
+    def finish_grouping(self):
+        # 완료 버튼 클릭 시 처리
+        print("그룹화 완료!")
+        # 여기서 창을 닫거나 다음 단계로 넘어갈 수 있도록 구현 가능
+        self.close()
 
-        msg = "\n".join([f"{k}: {v}" for k, v in result.items()])
-        QMessageBox.information(self, "그룹 나누기 완료", msg)
 
-if __name__ == "__main__":
+if __name__ == '__main__':
     app = QApplication(sys.argv)
-    window = DistrictGrouper()
+    window = DistrictGroupApp()
     window.show()
     sys.exit(app.exec_())
