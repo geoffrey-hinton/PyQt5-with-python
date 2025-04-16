@@ -4,6 +4,8 @@ from fuctions.handler import File_handler as Fh
 from PyQt5.QtWidgets import *
 from ui_main_window import Ui_MainWindow
 import resources_rc
+from functions.page_navigator import *
+from functions.separate_location import DistrictGroupApp
 
 
 class MainWindow(QMainWindow, Ui_MainWindow):
@@ -21,9 +23,13 @@ class MainWindow(QMainWindow, Ui_MainWindow):
 
         print(self.stackedWidget.currentIndex())
         #버튼 기능 연결
-        self.back_btn.clicked.connect(self.go_back)
-        self.next_btn.clicked.connect(self.go_to_next_page)
-        self.exit_btn.clicked.connect(self.go_exit)
+        self.back_btn.clicked.connect(lambda: go_back(self))
+        self.next_btn.clicked.connect(lambda: go_next(self))
+        self.exit_btn.clicked.connect(lambda: go_exit(self))
+
+        self.seoul_btn.clicked.connect(lambda: self.open_location_window("서울"))
+        self.gyeong_btn.clicked.connect(lambda: self.open_location_window("경기"))
+        self.busan_btn.clicked.connect(lambda: self.open_location_window("부산"))
 
         self.btn_browse.clicked.connect(self.browse_file)
         self.next_btn.clicked.connect(self.go_to_selected_page)
@@ -31,42 +37,12 @@ class MainWindow(QMainWindow, Ui_MainWindow):
 
         self.back_btn.setEnabled(False)
 
-        self.find_buttons_in_page()
+    def open_location_window(self, location):
+        self.location_window = DistrictGroupApp(location)
+        self.location_window.show()
 
-    
-    def find_buttons_in_page(self):
-        buttons = self.page_8.findChildren(QPushButton)
-
-        for btn in buttons:
-            print(btn.text())
         
 
-
-    # 함수 모음
-    def go_to_next_page(self):
-        print("clicked_next")
-        current_index = self.stackedWidget.currentIndex()
-        max_index = self.stackedWidget.count() - 1
-
-        if current_index < max_index:
-            self.stackedWidget.setCurrentIndex(current_index + 1)
-        current_index = self.stackedWidget.currentIndex()
-
-        self.next_btn.setEnabled(current_index < max_index)
-
-        self.back_btn.setEnabled(current_index > 0)
-
-    def go_back(self):
-        print("clicked_back")
-        if self.page_history:
-            last_page = self.page_history.pop()
-            self.stackedWidget.setCurrentIndex(last_page)
-
-        self.back_btn.setEnabled(len(self.page_history) > 0)
-        
-
-    def go_exit(self):
-        QApplication.quit()
 
     def browse_file(self):
         file_path, _ = QFileDialog.getOpenFileName(self, "파일 선택")
@@ -107,7 +83,6 @@ class MainWindow(QMainWindow, Ui_MainWindow):
                 self.next_btn.setEnabled(False)
     def go_to_selected_page(self):
         current_index = self.stackedWidget.currentIndex()
-        self.page_history.append(current_index)
         if self.divide_radio_btn.isChecked():
             self.stackedWidget.setCurrentIndex(2)
 
