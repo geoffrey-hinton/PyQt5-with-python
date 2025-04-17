@@ -5,7 +5,7 @@ from ui_main_window import Ui_MainWindow
 import resources_rc
 from functions.page_navigator import *
 from functions.separate_location import DistrictGroupApp
-from functions.file_handler import read_excel_safely
+from functions.file_handler import read_excel_safely, set_columns
 import pandas as pd
 
 
@@ -27,14 +27,20 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         #버튼 기능 연결
         self.back_btn.clicked.connect(lambda: go_back(self))
         self.next_btn.clicked.connect(lambda: go_next(self))
+        self.next_btn.clicked.connect(self.go_to_selected_page)
         self.exit_btn.clicked.connect(lambda: go_exit(self))
+
+        # 서울, 경기, 부산
 
         self.seoul_btn.clicked.connect(lambda: self.open_location_window("서울"))
         self.gyeong_btn.clicked.connect(lambda: self.open_location_window("경기"))
         self.busan_btn.clicked.connect(lambda: self.open_location_window("부산"))
 
+
+        # 파일
         self.btn_browse.clicked.connect(self.browse_file)
-        self.next_btn.clicked.connect(self.go_to_selected_page)
+        self.sheets_combo.currentIndexChanged.connect(self.on_sheet_selected)
+        self.save_btn.cliked.connect(self.on_save_clicked)
 
         self.back_btn.setEnabled(False)
 
@@ -58,8 +64,10 @@ class MainWindow(QMainWindow, Ui_MainWindow):
             sheet_names = read_excel_safely(file_path)
             self.file_path = file_path
             self.sheet_names = sheet_names
-            print("시트 목록:", sheet_names)
+            print("시트 목록:", self.sheet_names)
             self.next_btn.setEnabled(True)
+            self.sheets_combo.clear()
+            self.sheets_combo.addItems(sheet_names)
 
         except ValueError as ve:
             QMessageBox.warning(self, "파일 오류", str(ve), QMessageBox.StandardButton.Ok)
@@ -69,6 +77,24 @@ class MainWindow(QMainWindow, Ui_MainWindow):
             QMessageBox.critical(self, "엑셀 읽기 오류", str(re), QMessageBox.StandardButton.Ok)
             self.next_btn.setEnabled(False)
 
+
+    # 시트에 포함된 열 불러오기
+    def on_sheet_selected(self):
+        sheet_name = self.sheets_combo.currentText()
+
+        try:
+            columns = set_columns(self.file_path, sheet_name)
+            self.zip_code_combo.clear()
+            self.address_combo.clear()
+            self.sharecount_combo.clear()
+
+            self.zip_code_combo.addItems(columns)
+            self.address_combo.addItems(columns)
+            self.sharecount_combo.addItems(columns)
+        
+        except Exception as e:
+            QMessageBox.warning(self, "Error", f"{sheet_name} 시트 열을 불러올 수 없습니다.")
+        
 
 
 
