@@ -94,6 +94,8 @@ class DistrictGroupApp(QDialog):
         self.delete_group_button.clicked.connect(self.delete_selected_group)
         self.finish_button.clicked.connect(self.finish_grouping)
 
+
+    # 지역 나누기
     def update_group_display(self, group_name):
         if hasattr(self, "group_display"):
             self.layout().itemAt(2).layout().replaceWidget(self.group_display, self.group_widgets[group_name])
@@ -173,5 +175,6 @@ class DistrictGroupApp(QDialog):
             result[group_name] = loc_list
 
         self.group_result = result
-        print("그룹화 완료!")
-        self.close()
+
+        # print("그룹화 결과", self.group_result)
+        self.accept()
