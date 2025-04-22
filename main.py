@@ -5,7 +5,7 @@ from ui_main_window import Ui_MainWindow
 import resources_rc
 from functions.page_navigator import *
 from functions.separate_location import DistrictGroupApp
-from functions.file_handler import read_excel_safely, set_columns
+from functions.file_handler import read_excel_safely, set_columns, divide_location
 import pandas as pd
 
 
@@ -40,9 +40,13 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         # 파일
         self.btn_browse.clicked.connect(self.browse_file)
         self.sheets_combo.currentIndexChanged.connect(self.on_sheet_selected)
-        self.save_btn.cliked.connect(self.on_save_clicked)
+        self.save_btn.clicked.connect(self.on_save_clicked)
+        self.location_btn.setEnabled(False)
 
         self.back_btn.setEnabled(False)
+
+        # 분할
+        self.location_btn.clicked.connect(lambda: divide_location(self))
 
     def open_location_window(self, location):
         self.next_btn.setEnabled(False)
@@ -84,19 +88,42 @@ class MainWindow(QMainWindow, Ui_MainWindow):
 
         try:
             columns = set_columns(self.file_path, sheet_name)
-            self.zip_code_combo.clear()
             self.address_combo.clear()
             self.sharecount_combo.clear()
 
-            self.zip_code_combo.addItems(columns)
             self.address_combo.addItems(columns)
             self.sharecount_combo.addItems(columns)
         
         except Exception as e:
             QMessageBox.warning(self, "Error", f"{sheet_name} 시트 열을 불러올 수 없습니다.")
+    
+
+    def on_save_clicked(self):
+        self.next_btn.setEnabled(False)
+        selected_columns = {
+            "file_path" : self.file_path,
+            "sheet_name" : self.sheets_combo.currentText(),
+            "com_name" : self.lineEdit.text(),
+            "share_num" : self.sharecount_combo.currentText(),
+            "address" : self.address_combo.currentText(),
+        }
+
+        if "" in selected_columns.values():
+            self.location_btn.setEnabled(False)
+            QMessageBox.warning(self, "입력 오류", "모든 열을 선택해주세요.")
+            return
+        else:
+            self.location_btn.setEnabled(True)
+            
+
+        self.selected_columns = selected_columns
+        print("selected_columns", self.selected_columns)
+
+    # 분할
+
+    def div_location(self):
+        divide_location(self.selected_columns, self.location_text)
         
-
-
 
 
     def go_to_selected_page(self):
@@ -116,8 +143,6 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         elif self.check_num_btn.isChecked():
             self.stackedWidget.setCurrentIndex(8)
         
-    def go_to_specific_split(self):
-        pass
         
 
 app = QApplication(sys.argv)
