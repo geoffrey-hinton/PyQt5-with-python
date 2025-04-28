@@ -22,6 +22,9 @@ class MainWindow(QMainWindow, Ui_MainWindow):
 
         self.page_history = []
 
+        self.scroll_layout = QVBoxLayout(self.scrollAreaWidgetContents)
+        self.scrollAreaWidgetContents.setLayout(self.scroll_layout)
+
 
         print(self.stackedWidget.currentIndex())
         #버튼 기능 연결
@@ -46,7 +49,12 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         self.back_btn.setEnabled(False)
 
         # 분할
-        self.location_btn.clicked.connect(lambda: divide_location(self))
+        self.location_btn.clicked.connect(self.div_location)
+
+        # 중복 및 누락 확인
+
+        self.btn_browse_2.clicked.connect(self.browse_file_dup)
+        self.selected_ok.clicked.connect(self.update_whole_sheet)
 
     def open_location_window(self, location):
         self.next_btn.setEnabled(False)
@@ -58,7 +66,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         
         
 
-
+    # 지역 분할 부분 파일 탐색
     def browse_file(self):
         file_path, _ = QFileDialog.getOpenFileName(self, "파일 선택")
         self.lineEdit_path.setText(file_path)
@@ -66,6 +74,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         try:
             # 이건 직접 만든 함수! 에러는 내부에서 raise 함
             sheet_names = read_excel_safely(file_path)
+            self.sheet_names = sheet_names
             self.file_path = file_path
             self.sheet_names = sheet_names
             print("시트 목록:", self.sheet_names)
@@ -81,7 +90,6 @@ class MainWindow(QMainWindow, Ui_MainWindow):
             QMessageBox.critical(self, "엑셀 읽기 오류", str(re), QMessageBox.StandardButton.Ok)
             self.next_btn.setEnabled(False)
 
-
     # 시트에 포함된 열 불러오기
     def on_sheet_selected(self):
         sheet_name = self.sheets_combo.currentText()
@@ -96,7 +104,6 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         
         except Exception as e:
             QMessageBox.warning(self, "Error", f"{sheet_name} 시트 열을 불러올 수 없습니다.")
-    
 
     def on_save_clicked(self):
         self.next_btn.setEnabled(False)
@@ -119,10 +126,60 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         self.selected_columns = selected_columns
         print("selected_columns", self.selected_columns)
 
+    # 중복 및 누락 확인 부분 타일 탐색
+
+    def browse_file_dup(self):
+        file_path, _ = QFileDialog.getOpenFileName(self, "파일 선택")
+        self.lineEdit_path_2.setText(file_path)
+
+        try:
+            # 이건 직접 만든 함수! 에러는 내부에서 raise 함
+            sheet_names = read_excel_safely(file_path)
+            self.sheet_names = sheet_names
+            print("시트 목록:", self.sheet_names)
+            self.next_btn.setEnabled(True)
+            self.whole_sheet.clear()
+            self.whole_sheet.addItems(sheet_names)
+            while self.scroll_layout.count():
+                child = self.scroll_layout.takeAt(0)
+                if child.widget():
+                    child.widget().deleteLater()
+
+            # 새로운 체크박스 추가
+            self.sheet_checkboxes = []
+            for name in self.sheet_names:
+                checkbox = QCheckBox(name, self.scrollAreaWidgetContents)  # 여기 widget parent 지정
+                self.scroll_layout.addWidget(checkbox)
+                self.sheet_checkboxes.append(checkbox)
+
+        except ValueError as ve:
+            QMessageBox.warning(self, "파일 오류", str(ve), QMessageBox.StandardButton.Ok)
+            self.next_btn.setEnabled(False)
+
+        except RuntimeError as re:
+            QMessageBox.critical(self, "엑셀 읽기 오류", str(re), QMessageBox.StandardButton.Ok)
+            self.next_btn.setEnabled(False)
+
+    def update_whole_sheet(self):
+        self.whole_sheet_text = self.whole_sheet.currentText()
+        self.selected_sheets = [cb.text() for cb in self.sheet_checkboxes if not cb.isChecked()]
+        print(f"전체 시트 : {self.whole_sheet_text} \n나머지 시트 리스트 {self.selected_sheets}")
+        result = QMessageBox.information(
+            self,
+            "선택 확인",
+            f"비교를 위한 시트:\n{self.whole_sheet_text}\n\n비교 대상 시트들:\n{', '.join(self.selected_sheets)}"
+        )
+
+        if result == QMessageBox.Ok:
+            self.next_btn.setEnabled(True)
+
+        
+
     # 분할
 
     def div_location(self):
         divide_location(self.selected_columns, self.location_text)
+        
         
 
 
