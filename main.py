@@ -6,7 +6,9 @@ import resources_rc
 from functions.page_navigator import *
 from functions.separate_location import DistrictGroupApp
 from functions.file_handler import read_excel_safely, set_columns, divide_location
+from collections import Counter
 import pandas as pd
+
 
 
 class MainWindow(QMainWindow, Ui_MainWindow):
@@ -172,13 +174,39 @@ class MainWindow(QMainWindow, Ui_MainWindow):
 
         if result == QMessageBox.Ok:
             self.next_btn.setEnabled(True)
+            QApplication.processEvents()
+            self.textEdit_3.setPlainText("선택하신 사항에 따라 분할이 진행됩니다.")
+            whole_df = pd.read_excel(self.lineEdit_path_2.text(), self.whole_sheet_text, dtype = str)
+            sheets_dict = pd.read_excel(self.lineEdit_path_2.text(), self.selected_sheets, skiprows = 2, dtype = str)
+            
+            sheets_df = pd.concat(sheets_dict.values(), axis = 0, ignore_index = True)
+            col_li = whole_df.columns.to_list()
 
+            merged_df = whole_df.merge(sheets_df, how = "outer", on = col_li, indicator = True)
+            
+            # 중복 처리
+            duplicates = merged_df[merged_df.duplicated(subset = col_li, keep = False)]
+            if duplicates.empty:
+                pass
+            else:
+                pass
+
+
+            # 누락 처리 분기
+            
+            
+
+
+            
+
+            
         
 
     # 분할
 
     def div_location(self):
         divide_location(self.selected_columns, self.location_text)
+        self.next_btn.setEnabled(True)
         
         
 
