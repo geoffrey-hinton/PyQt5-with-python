@@ -1,6 +1,7 @@
 import sys
 import pandas as pd
 from PyQt5.QtWidgets import *
+from PyQt5.QtCore import QAbstractTableModel, Qt
 from ui_main_window import Ui_MainWindow
 import resources_rc
 from functions.page_navigator import *
@@ -8,6 +9,33 @@ from functions.separate_location import DistrictGroupApp
 from functions.file_handler import read_excel_safely, set_columns, divide_location
 from collections import Counter
 import pandas as pd
+from itertools import zip_longest
+
+# PandasModel 클래스 정의
+
+class PandasModel(QAbstractTableModel):
+    def __init__(self, df, parent = None):
+        super().__init__(parent)
+        self._df = df
+
+    def rowCount(self, parent = None):
+        return self._df.shape[0]
+
+    def columnCount(self, parent = None):
+        return self._df.shape[1]
+
+    def data(self, index, role = Qt.DisplayRole):
+        if index.isValid() and role == Qt.DisplayRole:
+            return str(self._df.iloc[index.row(), index.column()])
+        return None
+    
+    def headerData(self, section, orientation, role = Qt.DisplayRole):
+        if role == Qt.DisplayRole:
+            if orientation == Qt.Horizontal:
+                return str(self._df.columns[section])
+            else:
+                return str(self._df.index[section])
+        return None
 
 
 
@@ -58,13 +86,32 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         self.btn_browse_2.clicked.connect(self.browse_file_dup)
         self.selected_ok.clicked.connect(self.update_whole_sheet)
 
+        # 상세 분할
+        # self.start_dic_btn.connect(lambda: )
+
     def open_location_window(self, location):
-        self.next_btn.setEnabled(False)
+        
+        self.next_btn.setEnabled(True)
+        if location == "서울":
+            self.stackedWidget.setCurrentIndex(6)
+        elif location == "경기":
+            self.stackedWidget.setCurrentIndex(5)
+        elif location == "부산":
+            self.stackedWidget.setCurrentIndex(7)
         dialog = DistrictGroupApp(location)
         if dialog.exec_() == QDialog.Accepted:
             self.group_data[location] = dialog.group_result
+            for k, v in self.group_data.items():
+                print(f"key : {k}")
+                print(f"value : {v}")
             print(f"{location} 그룹화 완료:", dialog.group_result)
             dialog.close()
+            temp_df = pd.DataFrame(dict(zip(self.group_data[location].keys(), 
+                                            zip_longest(*self.group_data[location].values()))))
+            temp_df_t = temp_df.T
+            model_temp = PandasModel(temp_df_t)
+            self.tableView_3.setModel(model_temp)
+            
         
         
 
@@ -176,25 +223,42 @@ class MainWindow(QMainWindow, Ui_MainWindow):
             self.next_btn.setEnabled(True)
             QApplication.processEvents()
             self.textEdit_3.setPlainText("선택하신 사항에 따라 분할이 진행됩니다.")
-            whole_df = pd.read_excel(self.lineEdit_path_2.text(), self.whole_sheet_text, dtype = str)
+            if self.whole_sheet_text in ["서울", "경기", "부산"]:
+                whole_df = pd.read_excel(self.lineEdit_path_2.text(), self.whole_sheet_text, dtype = str, skiprows = 2)
+            else:
+                whole_df = pd.read_excel(self.lineEdit_path_2.text(), self.whole_sheet_text, dtype = str)
             sheets_dict = pd.read_excel(self.lineEdit_path_2.text(), self.selected_sheets, skiprows = 2, dtype = str)
             
+
+
             sheets_df = pd.concat(sheets_dict.values(), axis = 0, ignore_index = True)
             col_li = whole_df.columns.to_list()
 
             merged_df = whole_df.merge(sheets_df, how = "outer", on = col_li, indicator = True)
             
             # 중복 처리
-            duplicates = merged_df[merged_df.duplicated(subset = col_li, keep = False)]
-            if duplicates.empty:
+            duplicates = sheets_df[sheets_df.duplicated(subset = col_li, keep = False)]
+            duplicates = duplicates.loc[:, ~duplicates.columns.str.startswith("Unnamed")]
+            if not duplicates.empty:
                 pass
             else:
-                pass
-
+                self.label_26.setText("중복된 데이터 없습니다.")
+                    
+            model_dup = PandasModel(duplicates)
+            self.tableView_2.setModel(model_dup)
+            
+            
 
             # 누락 처리 분기
-            
-            
+            omission = merged_df[merged_df["_merge"] == "left_only"].drop(columns = "_merge")
+            omission = omission.loc[:, ~omission.columns.str.startswith("Unnamed")]
+
+            if not omission.empty:
+                pass
+            else:
+                self.label_27.setText("누락된 데이터 없습니다.")
+            model_omission = PandasModel(omission)
+            self.tableView.setModel(model_omission)
 
 
             
