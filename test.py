@@ -1,45 +1,22 @@
-import sys
-from PyQt5.QtWidgets import (
-    QApplication, QDialog, QListWidget, QPushButton,
-    QVBoxLayout, QLabel, QAbstractItemView
-)
+import pandas as pd
+import numpy as np
 
-class SheetExcludeDialog(QDialog):
-    def __init__(self, sheet_names):
-        super().__init__()
-        self.setWindowTitle("제외할 시트 선택")
-        self.setMinimumWidth(300)
+# 예시 데이터 (group_data)
+group_data = {
+    '경기1': ['가평군', '고양시', '과천시', '광명시', '광주시', '구리시', '군포시', '화성시'],
+    '경기2': ['김포시', '남양주시', '동두천시', '부천시', '성남시', '수원시', '시흥시', '안산시', '안성시', '안양시', '양주시', '양평군', '여주시', '연천군', '오산시', '용인시', '의왕시', '의정부시', '이천시', '파주시', '평택시', '포천시', '하남시']
+}
 
-        self.all_sheets = sheet_names
-        self.remaining_sheets = []
+max_len = max(len(v) for v in group_data.values())
 
-        self.list_widget = QListWidget()
-        self.list_widget.addItems(sheet_names)
-        self.list_widget.setSelectionMode(QAbstractItemView.MultiSelection)
+# 길이가 짧은 리스트는 NaN으로 채워서 맞추기
+for key in group_data:
+    while len(group_data[key]) < max_len:
+        group_data[key].append(np.nan)
 
-        self.label = QLabel("제외할 시트를 선택하고 아래 버튼을 누르세요")
-        self.confirm_btn = QPushButton("제외 완료")
-        self.confirm_btn.clicked.connect(self.exclude_selected)
+# dict를 DataFrame으로 변환
+temp_df = pd.DataFrame(group_data)
 
-        layout = QVBoxLayout()
-        layout.addWidget(self.label)
-        layout.addWidget(self.list_widget)
-        layout.addWidget(self.confirm_btn)
-        self.setLayout(layout)
-
-    def exclude_selected(self):
-        excluded = [item.text() for item in self.list_widget.selectedItems()]
-        self.remaining_sheets = [s for s in self.all_sheets if s not in excluded]
-        print("남은 시트들:", self.remaining_sheets)
-        self.accept()
-
-# 단독 실행 테스트용
-if __name__ == "__main__":
-    app = QApplication(sys.argv)
-    test_sheet_names = [
-        "요약", "2023매출", "2023지출", "통계", "그래프", "숨김1"
-    ]
-    dialog = SheetExcludeDialog(test_sheet_names)
-    if dialog.exec_() == QDialog.Accepted:
-        print("✔️ 최종 선택된 시트들:", dialog.remaining_sheets)
-    sys.exit()
+# 결과 출력
+print(temp_df)
+print(temp_df.shape)
