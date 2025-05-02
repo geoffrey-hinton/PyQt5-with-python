@@ -1,15 +1,17 @@
 import sys
 import pandas as pd
+import numpy as np
+import resources_rc
+import copy
 from PyQt5.QtWidgets import *
 from PyQt5.QtCore import QAbstractTableModel, Qt
 from ui_main_window import Ui_MainWindow
-import resources_rc
 from functions.page_navigator import *
 from functions.separate_location import DistrictGroupApp
-from functions.file_handler import read_excel_safely, set_columns, divide_location
+from functions.file_handler import read_excel_safely, set_columns, divide_location, divide_spe_location, set_spe_columns
 from collections import Counter
-import pandas as pd
 from itertools import zip_longest
+
 
 # PandasModel 클래스 정의
 
@@ -49,6 +51,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         self.file_handler = None
         self.data = None
         self.group_data = {}
+        # self.location = None
 
         self.page_history = []
 
@@ -68,6 +71,8 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         self.seoul_btn.clicked.connect(lambda: self.open_location_window("서울"))
         self.gyeong_btn.clicked.connect(lambda: self.open_location_window("경기"))
         self.busan_btn.clicked.connect(lambda: self.open_location_window("부산"))
+        self.btn_browse_3.clicked.connect(self.browse_specific)
+        self.start_div_btn.clicked.connect(self.start_div)
 
 
         # 파일
@@ -85,35 +90,8 @@ class MainWindow(QMainWindow, Ui_MainWindow):
 
         self.btn_browse_2.clicked.connect(self.browse_file_dup)
         self.selected_ok.clicked.connect(self.update_whole_sheet)
+        self.lineEdit_path_3.textChanged.connect(self.select_column)
 
-        # 상세 분할
-        # self.start_dic_btn.connect(lambda: )
-
-    def open_location_window(self, location):
-        
-        self.next_btn.setEnabled(True)
-        if location == "서울":
-            self.stackedWidget.setCurrentIndex(6)
-        elif location == "경기":
-            self.stackedWidget.setCurrentIndex(5)
-        elif location == "부산":
-            self.stackedWidget.setCurrentIndex(7)
-        dialog = DistrictGroupApp(location)
-        if dialog.exec_() == QDialog.Accepted:
-            self.group_data[location] = dialog.group_result
-            for k, v in self.group_data.items():
-                print(f"key : {k}")
-                print(f"value : {v}")
-            print(f"{location} 그룹화 완료:", dialog.group_result)
-            dialog.close()
-            temp_df = pd.DataFrame(dict(zip(self.group_data[location].keys(), 
-                                            zip_longest(*self.group_data[location].values()))))
-            temp_df_t = temp_df.T
-            model_temp = PandasModel(temp_df_t)
-            self.tableView_3.setModel(model_temp)
-            
-        
-        
 
     # 지역 분할 부분 파일 탐색
     def browse_file(self):
@@ -260,12 +238,6 @@ class MainWindow(QMainWindow, Ui_MainWindow):
             model_omission = PandasModel(omission)
             self.tableView.setModel(model_omission)
 
-
-            
-
-            
-        
-
     # 분할
 
     def div_location(self):
@@ -273,8 +245,106 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         self.next_btn.setEnabled(True)
         
         
+    # 상세 분할
+    def open_location_window(self, location):
+        self.location = location
+        self.next_btn.setEnabled(True)
+        self.start_div_btn.setEnabled(False)
+        if location == "서울":
+            self.stackedWidget.setCurrentIndex(6)
+        elif location == "경기":
+            self.stackedWidget.setCurrentIndex(5)
+        elif location == "부산":
+            self.stackedWidget.setCurrentIndex(7)
+        dialog = DistrictGroupApp(location)
+        if dialog.exec_() == QDialog.Accepted:
+            result = dialog.group_result
+            self.selected_columns = copy.deepcopy(result)
+            self.group_data[location] = result
+            self.temp_dict = result
+            for k, v in self.group_data.items():
+                print(f"key : {k}")
+                print(f"value : {v}")
+            print(f"{location} 그룹화 완료:", self.group_data[location])
+            dialog.close()
+            max_len = max(len(v) for v in self.temp_dict.values())
+            for key in self.temp_dict:
+                while len(self.temp_dict[key]) < max_len:
+                    self.temp_dict[key].append(np.nan)
+                    
+            temp_df = pd.DataFrame(self.temp_dict)
+            temp_df = temp_df.fillna('')
+            print(temp_df)
+            print(temp_df.shape)
+            temp_df_t = temp_df.T
+            print(temp_df_t.shape)
+            model_temp = PandasModel(temp_df_t)
+            self.tableView_3.setModel(model_temp)
+            self.tableView_3.horizontalHeader().setStretchLastSection(True)
+            self.tableView_3.resizeColumnsToContents()
+    
+    # 상세분할 파일 선택 부분
+    def browse_specific(self):
+        file_path, _ = QFileDialog.getOpenFileName(self, "파일 선택")
+        self.lineEdit_path_3.setText(file_path)
+
+        try:
+            sheet_names = read_excel_safely(file_path)
+            self.next_btn.setEnabled(True)
+            self.file_path = file_path
+            print(self.file_path)
+            self.start_div_btn.setEnabled(True)
+        except ValueError as ve:
+            QMessageBox.warning(self, "파일 오류", str(ve), QMessageBox.StandardButton.Ok)
+            self.next_btn.setEnabled(False)
+        except RuntimeError as re:
+            QMessageBox.critical(self, "엑셀 읽기 오류", str(re), QMessageBox.StandardButton.Ok)
+            self.next_btn.setEnabled(False)
+
+    # 상세분할 열 선택
+    def select_column(self):
+        self.file_path = self.lineEdit_path_3.text()
+        sheet_name = self.location
+
+        try:
+            columns = set_spe_columns(self.file_path, sheet_name)
+            self.address_combo_4.clear()
+            self.sharecount_combo_4.clear()
+
+            self.address_combo_4.addItems(columns)
+            self.sharecount_combo_4.addItems(columns)
+            self.label_31.setText("주식수, 주소에 해당하는 열과 회사명을 입력해주세요")
+        
+        except Exception as e:
+            QMessageBox.warning(self, "Error", f"{sheet_name} 시트가 없습니다.")
+    
+    # 상세분할 시작 버튼 부분
+    def start_div(self):
+        print(self.group_data[self.location])
+        selected_columns = {
+            "file_path" : self.file_path,
+            "sheet_name" : self.location,
+            "com_name" : self.lineEdit_2.text(),
+            "share_num" : self.sharecount_combo_4.currentText(),
+            "address" : self.address_combo_4.currentText(),
+            "target_dict" : self.selected_columns
+        }
+        self.selected_columns = selected_columns
+
+        print(self.selected_columns)
 
 
+        if "" in selected_columns.values():
+            QMessageBox.warning(self, "입력 오류", "모든 항목을 선택(입력) 해주세요")
+        else:
+            divide_spe_location(self.selected_columns, self.location_text_2)
+        
+
+        
+    
+    
+    
+    # 파일 이동 관련 함수
     def go_to_selected_page(self):
         current_index = self.stackedWidget.currentIndex()
         if self.divide_radio_btn.isChecked():
@@ -291,7 +361,6 @@ class MainWindow(QMainWindow, Ui_MainWindow):
 
         elif self.check_num_btn.isChecked():
             self.stackedWidget.setCurrentIndex(8)
-        
         
 
 app = QApplication(sys.argv)
