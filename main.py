@@ -1,4 +1,5 @@
 import sys
+import traceback
 import pandas as pd
 import numpy as np
 import resources_rc
@@ -8,12 +9,28 @@ from PyQt5.QtCore import QAbstractTableModel, Qt
 from ui_main_window import Ui_MainWindow
 from functions.page_navigator import *
 from functions.separate_location import DistrictGroupApp
-from functions.file_handler import read_excel_safely, set_columns, divide_location, divide_spe_location, set_spe_columns
+from functions.file_handler import read_excel_safely, set_columns, divide_location, divide_spe_location, set_spe_columns, stat_to_excel
 from collections import Counter
 from itertools import zip_longest
 
+#예외처리 후킹 등록
+def except_hook(exctype, value, tb):
+    with open("error_log.txt", "w", encoding = 'utf-8') as f:
+        f.write("오류 발생\n")
+        f.write("".join(traceback.format_exception(exctype, value, tb)))
+
+    msg = QMessageBox()
+    msg.setIcon(QMessageBox.Critical)
+    msg.setWindowTitle("에러 발생")
+    msg.setText("프로그램 실행 중 오류가 발생했습니다.\nerror_log.txt를 확인해주세요")
+    msg.exec_()
+
+sys.excepthook = except_hook
+
 
 # PandasModel 클래스 정의
+
+
 
 class PandasModel(QAbstractTableModel):
     def __init__(self, df, parent = None):
@@ -58,12 +75,15 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         self.scroll_layout = QVBoxLayout(self.scrollAreaWidgetContents)
         self.scrollAreaWidgetContents.setLayout(self.scroll_layout)
 
+        self.scroll_layout_3 = QVBoxLayout(self.scrollAreaWidgetContents_3)
+        self.scrollAreaWidgetContents_3.setLayout(self.scroll_layout_3)
+
 
         print(self.stackedWidget.currentIndex())
         #버튼 기능 연결
         self.back_btn.clicked.connect(lambda: go_back(self))
         self.next_btn.clicked.connect(lambda: go_next(self))
-        self.next_btn.clicked.connect(self.go_to_selected_page)
+        # self.next_btn.clicked.connect(self.go_to_selected_page)
         self.exit_btn.clicked.connect(lambda: go_exit(self))
 
         # 서울, 경기, 부산
@@ -91,6 +111,13 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         self.btn_browse_2.clicked.connect(self.browse_file_dup)
         self.selected_ok.clicked.connect(self.update_whole_sheet)
         self.lineEdit_path_3.textChanged.connect(self.select_column)
+
+        # 지역 및 주식수 확인
+        self.btn_browse_4.clicked.connect(self.check_browse)
+        self.whole_sheet_3.currentIndexChanged.connect(self.check_num)
+        self.enter_stat.clicked.connect(self.stat_file)
+
+        
 
 
     # 지역 분할 부분 파일 탐색
@@ -242,6 +269,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
 
     def div_location(self):
         divide_location(self.selected_columns, self.location_text)
+        self.ask_return_to_menu()
         self.next_btn.setEnabled(True)
         
         
@@ -282,6 +310,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
             self.tableView_3.setModel(model_temp)
             self.tableView_3.horizontalHeader().setStretchLastSection(True)
             self.tableView_3.resizeColumnsToContents()
+            self.stackedWidget.setCurrentIndex(8)
     
     # 상세분할 파일 선택 부분
     def browse_specific(self):
@@ -338,6 +367,99 @@ class MainWindow(QMainWindow, Ui_MainWindow):
             QMessageBox.warning(self, "입력 오류", "모든 항목을 선택(입력) 해주세요")
         else:
             divide_spe_location(self.selected_columns, self.location_text_2)
+
+    def check_browse(self):
+        file_path, _ = QFileDialog.getOpenFileName(self, "파일 선택")
+        self.file_path = file_path
+        self.lineEdit_path_4.setText(file_path)
+
+        try:
+            # 이건 직접 만든 함수! 에러는 내부에서 raise 함
+            sheet_names = read_excel_safely(file_path)
+            self.sheet_names = sheet_names
+            print("시트 목록:", self.sheet_names)
+            self.whole_sheet_3.clear()
+            self.whole_sheet_3.addItems(sheet_names)
+            
+            self.label_70.setText("전체 시트를 선택해주세요")
+
+        except ValueError as ve:
+            QMessageBox.warning(self, "파일 오류", str(ve), QMessageBox.StandardButton.Ok)
+            self.next_btn.setEnabled(False)
+
+        except RuntimeError as re:
+            QMessageBox.critical(self, "엑셀 읽기 오류", str(re), QMessageBox.StandardButton.Ok)
+            self.next_btn.setEnabled(False)
+
+    def check_num(self):
+        self.enter_stat.setEnabled(False)
+        sheet_names = copy.deepcopy(self.sheet_names)
+        while self.scroll_layout_3.count():
+            child = self.scroll_layout_3.takeAt(0)
+            if child.widget():
+                child.widget().deleteLater()
+        sheet_names.remove(self.whole_sheet_3.currentText())
+
+        self.sheet_checkboxes = []
+        for name in sheet_names:
+            checkbox = QCheckBox(name, self.scrollAreaWidgetContents_3)
+            self.scroll_layout_3.addWidget(checkbox)
+            self.sheet_checkboxes.append(checkbox)
+        try:
+            sheet_name = self.whole_sheet_3.currentText()
+            columns = set_columns(self.file_path, sheet_name)
+            self.share_combo_3.clear()
+            self.share_combo_3.addItems(columns)
+            self.enter_stat.setEnabled(True)
+
+        except Exception as e:
+            QMessageBox.warning(self, "Error", f"{sheet_name} 시트의 열을 불러올 수 없습니다.")
+            self.enter_stat.setEnabled(False)
+        self.label_70.setText("통계 입력을 누르면 입력이 시작됩니다.")
+        
+
+
+    
+    def stat_file(self):
+        self.whole_sheet_text = self.whole_sheet.currentText()
+        self.selected_sheets = [cb.text() for cb in self.sheet_checkboxes if not cb.isChecked()]
+        selected_stat = {
+            "file_path" : self.file_path,
+            "skip_sheets" : self.selected_sheets,
+            "whole_sheet" : self.whole_sheet_3.currentText(),
+            "share_num" : self.share_combo_3.currentText(),
+        }
+
+        if "" in selected_stat.values():
+            QMessageBox.warning(self, "입력 오류", "모든 항목을 선택해주세요.")
+            return
+        else:
+            self.selected_stat = selected_stat
+            stat_to_excel(self.selected_stat, self.label_70)
+
+
+
+
+    # 기능종료 후 return
+    def ask_return_to_menu(self):
+        reply = QMessageBox.question(
+            self,
+            "확인",
+            "메뉴로 돌아가시겠습니까?",
+            QMessageBox.Yes | QMessageBox.No,
+            QMessageBox.Yes
+        )
+
+        if reply == QMessageBox.Yes:
+            self.page_history.append(self.stackedWidget.currentIndex())
+            self.stackedWidget.setCurrentIndex(0)
+
+        else:
+            pass
+
+        
+
+
         
 
         
@@ -345,25 +467,30 @@ class MainWindow(QMainWindow, Ui_MainWindow):
     
     
     # 파일 이동 관련 함수
-    def go_to_selected_page(self):
-        current_index = self.stackedWidget.currentIndex()
-        if self.divide_radio_btn.isChecked():
-            self.stackedWidget.setCurrentIndex(2)
+    # def go_to_selected_page(self):
+        # current_index = self.stackedWidget.currentIndex()
+        # if self.divide_radio_btn.isChecked():
+            # self.next_btn.setEnabled(True)
+            # self.stackedWidget.setCurrentIndex(2)
 
-        elif self.specific_radio_btn.isChecked():
-            self.stackedWidget.setCurrentIndex(4)
+        # elif self.specific_radio_btn.isChecked():
+            # self.stackedWidget.setCurrentIndex(4)
 
-        elif self.merge_radio_btn.isChecked():
-            self.stackedWidget.setCurrentIndex(6)
+        # elif self.merge_radio_btn.isChecked():
+            # self.stackedWidget.setCurrentIndex(6)
 
-        elif self.check_omission_btn.isChecked():
-            self.stackedWidget.setCurrentIndex(7)
+        # elif self.check_omission_btn.isChecked():
+            # self.stackedWidget.setCurrentIndex(7)
 
-        elif self.check_num_btn.isChecked():
-            self.stackedWidget.setCurrentIndex(8)
+        # elif self.check_num_btn.isChecked():
+            # self.stackedWidget.setCurrentIndex(8)
         
+def main():
+    
+    app = QApplication(sys.argv)
+    window = MainWindow()
+    window.show()
+    sys.exit(app.exec_())
 
-app = QApplication(sys.argv)
-window = MainWindow()
-window.show()
-sys.exit(app.exec_())
+if __name__ == "__main__":
+    main()
