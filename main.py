@@ -81,10 +81,10 @@ class MainWindow(QMainWindow, Ui_MainWindow):
 
         print(self.stackedWidget.currentIndex())
         #버튼 기능 연결
-        self.back_btn.clicked.connect(self.go_back(self))
-        self.next_btn.clicked.connect(self.go_next(self))
+        self.back_btn.clicked.connect(self.go_back)
+        self.next_btn.clicked.connect(self.go_next)
         # self.next_btn.clicked.connect(self.go_to_selected_page)
-        self.exit_btn.clicked.connect(self.go_exit(self))
+        self.exit_btn.clicked.connect(self.go_exit)
 
         # 서울, 경기, 부산
 
@@ -367,6 +367,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
             QMessageBox.warning(self, "입력 오류", "모든 항목을 선택(입력) 해주세요")
         else:
             divide_spe_location(self.selected_columns, self.location_text_2)
+            self.ask_return_to_menu(self)
 
     def check_browse(self):
         file_path, _ = QFileDialog.getOpenFileName(self, "파일 선택")
@@ -436,6 +437,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         else:
             self.selected_stat = selected_stat
             stat_to_excel(self.selected_stat, self.label_70)
+            self.ask_return_to_menu(self)
 
 
 
@@ -468,29 +470,52 @@ class MainWindow(QMainWindow, Ui_MainWindow):
             if self.divide_radio_btn.isChecked():
                 self.next_btn.setEnabled(True)
                 self.stackedWidget.setCurrentIndex(2)
+                self.back_btn.setEnabled(True)
 # 
             elif self.specific_radio_btn.isChecked():
                 self.stackedWidget.setCurrentIndex(4)
-#   
-            elif self.merge_radio_btn.isChecked():
-                self.stackedWidget.setCurrentIndex(9)
+                self.back_btn.setEnabled(True)
 #   
             elif self.check_omission_btn.isChecked():
+                self.stackedWidget.setCurrentIndex(9)
+                self.back_btn.setEnabled(True)
+#   
+            elif self.check_num_btn.isChecked():
                 self.stackedWidget.setCurrentIndex(11)
+                self.back_btn.setEnabled(True)
+        elif current_index in [3, 8, 10, 11]:
+            result = QMessageBox.question(
+                self,
+                "메뉴로 돌아가기",
+                "해당 기능이 완료되었습니다.\n메뉴로 돌아가시겠습니까?",
+                QMessageBox.Yes | QMessageBox.No
+            )
+            if result == QMessageBox.Yes:
+                self.stackedWidget.setCurrentIndex(1)
+            else:
+                pass
+        
         else:
-
-            print(f"current_index{current_index}")
             self.stackedWidget.setCurrentIndex(current_index + 1)
-            self.back_btn.setEnabled(True)
-            print(f"current_index : {self.stackedWidget.currentIndex()}")
+            
 
 
 
     def go_back(self):
         print("back clicked")
-
         current_index = self.stackedWidget.currentIndex()
-        self.stackedWidget.setCurrentIndex(current_index - 1)
+        if current_index in [2, 4, 9, 11]:
+            result = QMessageBox.question(
+                self,
+                "메뉴로 돌아가기",
+                "메뉴로 돌아가시겠습니까?",
+                QMessageBox.Yes | QMessageBox.No
+            )
+            if result == QMessageBox.Yes:
+                self.stackedWidget.setCurrentIndex(1)
+            
+        else:
+            self.stackedWidget.setCurrentIndex(current_index - 1)
 
     def go_exit(self):
         print("Quit")
