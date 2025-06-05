@@ -96,6 +96,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
 
         # 파일
         self.btn_browse.clicked.connect(self.browse_file)
+        self.lineEdit_path.textChanged.connect(lambda : self.next_btn.setEnabled(True))
         self.sheets_combo.currentIndexChanged.connect(self.on_sheet_selected)
         self.save_btn.clicked.connect(self.on_save_clicked)
         self.location_btn.setEnabled(False)
@@ -263,7 +264,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
                 self.label_27.setText("누락된 데이터 없습니다.")
             model_omission = PandasModel(omission)
             self.tableView.setModel(model_omission)
-
+        self.next_btn.setEnabled(True)
     # 분할
 
     def div_location(self):
@@ -437,6 +438,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
             self.selected_stat = selected_stat
             stat_to_excel(self.selected_stat, self.label_70)
             self.ask_return_to_menu(self)
+            self.next_btn.setEnabled(True)
 
 
 
@@ -470,18 +472,25 @@ class MainWindow(QMainWindow, Ui_MainWindow):
                 self.next_btn.setEnabled(True)
                 self.stackedWidget.setCurrentIndex(2)
                 self.back_btn.setEnabled(True)
+                self.next_btn.setEnabled(False)
 # 
             elif self.specific_radio_btn.isChecked():
                 self.stackedWidget.setCurrentIndex(4)
                 self.back_btn.setEnabled(True)
+                self.next_btn.setEnabled(False)
+
 #   
             elif self.check_omission_btn.isChecked():
                 self.stackedWidget.setCurrentIndex(9)
                 self.back_btn.setEnabled(True)
+                self.next_btn.setEnabled(False)
+
 #   
             elif self.check_num_btn.isChecked():
                 self.stackedWidget.setCurrentIndex(11)
                 self.back_btn.setEnabled(True)
+                self.next_btn.setEnabled(False)
+
         elif current_index in [3, 8, 10, 11]:
             result = QMessageBox.question(
                 self,
@@ -512,6 +521,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
             )
             if result == QMessageBox.Yes:
                 self.stackedWidget.setCurrentIndex(1)
+                self.next_btn.setEnabled(True)
             
         else:
             self.stackedWidget.setCurrentIndex(current_index - 1)
@@ -519,6 +529,8 @@ class MainWindow(QMainWindow, Ui_MainWindow):
     def go_exit(self):
         print("Quit")
         QApplication.quit()
+
+
 
 def main():
     
