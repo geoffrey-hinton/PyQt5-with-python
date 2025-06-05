@@ -1,11 +1,13 @@
 import pandas as pd
 import openpyxl as xl
-import openpyxl as xl
+import traceback
 from openpyxl.styles import Font, Alignment
 from openpyxl.utils import get_column_letter
 from PyQt5.QtWidgets import *
 from openpyxl.styles import Font, Alignment
 from openpyxl.utils import get_column_letter
+
+
 
 def read_excel_safely(file_path):
     """엑셀 파일 경로로부터 시트 목록을 안전하게 반환"""
@@ -190,3 +192,46 @@ def divide_spe_location(div_dict, label):
             last_col = get_column_letter(temp_df.shape[1] + 1)
             worksheet.merge_cells(f"A1:{last_col}1")
 
+# 지역별 인원수 및 합계
+
+import pandas as pd
+
+def stat_to_excel(info_dict, label):
+    label.setText("통계 입력이 시작되었습니다.")
+    QApplication.processEvents()
+    file_path = info_dict["file_path"]  # type: str
+    skip_sheets = info_dict["skip_sheets"]  # type: str
+    whole_sheet = info_dict["whole_sheet"]  # type: list
+    share_num = info_dict["share_num"]  # type: str
+
+    # 데이터 읽기
+    whole_df = pd.read_excel(file_path, sheet_name=whole_sheet, dtype=str)
+    sheets_df = pd.read_excel(file_path, sheet_name=skip_sheets, dtype=str, skiprows=2)
+
+    whole_df = whole_df[share_num].astype(int)
+    sheet_names = sorted(skip_sheets)
+
+    summary_sheets = []
+
+    summary_sheets.append({
+        "지역" : whole_sheet,
+        "인원수" : whole_df[share_num].count(),
+        "주식수" : whole_df[share_num].sum(),
+    })
+
+    for sheet_name in sorted(sheet_names):
+        df = sheets_df[sheet_name]
+        df[share_num] = df[share_num].astype(int)
+        summary_sheets.append({
+            "지역" : sheet_name,
+            "인원수" : df[share_num].count(),
+            "주식수" : df[share_num].sum(),
+        })
+
+    result_df = pd.DataFrame(summary_sheets)
+
+    with pd.ExcelWriter(file_path, engine = "openpyxl", mode = "a", if_sheet_exists = "replace") as writer:
+        result_df.to_excel(writer, sheet_name = "지역별 인원수 및 주식수 합계", index = False)
+
+    label.setText("통계 입력이 완료되었습니다")
+    QApplication.processEvents()
