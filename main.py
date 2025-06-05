@@ -7,7 +7,6 @@ import copy
 from PyQt5.QtWidgets import *
 from PyQt5.QtCore import QAbstractTableModel, Qt
 from ui_main_window import Ui_MainWindow
-# from functions.page_navigator import *
 from functions.separate_location import DistrictGroupApp
 from functions.file_handler import read_excel_safely, set_columns, divide_location, divide_spe_location, set_spe_columns, stat_to_excel
 from collections import Counter
@@ -521,35 +520,6 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         print("Quit")
         QApplication.quit()
 
-
-        
-
-
-        
-
-        
-    
-    
-    
-    # 파일 이동 관련 함수
-    # def go_to_selected_page(self):
-        # current_index = self.stackedWidget.currentIndex()
-        # if self.divide_radio_btn.isChecked():
-            # self.next_btn.setEnabled(True)
-            # self.stackedWidget.setCurrentIndex(2)
-
-        # elif self.specific_radio_btn.isChecked():
-            # self.stackedWidget.setCurrentIndex(4)
-
-        # elif self.merge_radio_btn.isChecked():
-            # self.stackedWidget.setCurrentIndex(6)
-
-        # elif self.check_omission_btn.isChecked():
-            # self.stackedWidget.setCurrentIndex(7)
-
-        # elif self.check_num_btn.isChecked():
-            # self.stackedWidget.setCurrentIndex(8)
-        
 def main():
     
     app = QApplication(sys.argv)
