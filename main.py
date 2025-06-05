@@ -7,7 +7,7 @@ import copy
 from PyQt5.QtWidgets import *
 from PyQt5.QtCore import QAbstractTableModel, Qt
 from ui_main_window import Ui_MainWindow
-from functions.page_navigator import *
+# from functions.page_navigator import *
 from functions.separate_location import DistrictGroupApp
 from functions.file_handler import read_excel_safely, set_columns, divide_location, divide_spe_location, set_spe_columns, stat_to_excel
 from collections import Counter
@@ -81,10 +81,10 @@ class MainWindow(QMainWindow, Ui_MainWindow):
 
         print(self.stackedWidget.currentIndex())
         #버튼 기능 연결
-        self.back_btn.clicked.connect(lambda: go_back(self))
-        self.next_btn.clicked.connect(lambda: go_next(self))
+        self.back_btn.clicked.connect(self.go_back(self))
+        self.next_btn.clicked.connect(self.go_next(self))
         # self.next_btn.clicked.connect(self.go_to_selected_page)
-        self.exit_btn.clicked.connect(lambda: go_exit(self))
+        self.exit_btn.clicked.connect(self.go_exit(self))
 
         # 서울, 경기, 부산
 
@@ -445,17 +445,57 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         reply = QMessageBox.question(
             self,
             "확인",
-            "메뉴로 돌아가시겠습니까?",
+            "작업이 끝났습니다 메뉴로 돌아가시겠습니까?",
             QMessageBox.Yes | QMessageBox.No,
             QMessageBox.Yes
         )
 
         if reply == QMessageBox.Yes:
             self.page_history.append(self.stackedWidget.currentIndex())
-            self.stackedWidget.setCurrentIndex(0)
+            self.stackedWidget.setCurrentIndex(1)
 
         else:
             pass
+
+    
+
+    # 페이지 이동 관련 함수
+
+    def go_next(self):
+        current_index = self.stackedWidget.currentIndex()
+        if current_index == 1:
+            current_index = self.stackedWidget.currentIndex()
+            if self.divide_radio_btn.isChecked():
+                self.next_btn.setEnabled(True)
+                self.stackedWidget.setCurrentIndex(2)
+# 
+            elif self.specific_radio_btn.isChecked():
+                self.stackedWidget.setCurrentIndex(4)
+#   
+            elif self.merge_radio_btn.isChecked():
+                self.stackedWidget.setCurrentIndex(9)
+#   
+            elif self.check_omission_btn.isChecked():
+                self.stackedWidget.setCurrentIndex(11)
+        else:
+
+            print(f"current_index{current_index}")
+            self.stackedWidget.setCurrentIndex(current_index + 1)
+            self.back_btn.setEnabled(True)
+            print(f"current_index : {self.stackedWidget.currentIndex()}")
+
+
+
+    def go_back(self):
+        print("back clicked")
+
+        current_index = self.stackedWidget.currentIndex()
+        self.stackedWidget.setCurrentIndex(current_index - 1)
+
+    def go_exit(self):
+        print("Quit")
+        QApplication.quit()
+
 
         
 
