@@ -132,7 +132,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
             self.file_path = file_path
             self.sheet_names = sheet_names
             print("시트 목록:", self.sheet_names)
-            self.next_btn.setEnabled(True)
+            # self.next_btn.setEnabled(True)
             self.sheets_combo.clear()
             self.sheets_combo.addItems(sheet_names)
 
@@ -191,7 +191,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
             sheet_names = read_excel_safely(file_path)
             self.sheet_names = sheet_names
             print("시트 목록:", self.sheet_names)
-            self.next_btn.setEnabled(True)
+            # self.next_btn.setEnabled(True)
             self.whole_sheet.clear()
             self.whole_sheet.addItems(sheet_names)
             while self.scroll_layout.count():
@@ -227,7 +227,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         if result == QMessageBox.Ok:
             self.next_btn.setEnabled(True)
             QApplication.processEvents()
-            self.textEdit_3.setPlainText("선택하신 사항에 따라 분할이 진행됩니다.")
+            self.textEdit_3.setPlainText("선택하신 사항에 따라 작업이 진행됩니다.")
             if self.whole_sheet_text in ["서울", "경기", "부산"]:
                 whole_df = pd.read_excel(self.lineEdit_path_2.text(), self.whole_sheet_text, dtype = str, skiprows = 2)
             else:
@@ -245,6 +245,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
             duplicates = sheets_df[sheets_df.duplicated(subset = col_li, keep = False)]
             duplicates = duplicates.loc[:, ~duplicates.columns.str.startswith("Unnamed")]
             if not duplicates.empty:
+                self.label_26.setText("중복된 데이터가 표시됩니다.")
                 pass
             else:
                 self.label_26.setText("중복된 데이터 없습니다.")
@@ -259,7 +260,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
             omission = omission.loc[:, ~omission.columns.str.startswith("Unnamed")]
 
             if not omission.empty:
-                pass
+                self.label_27.setExt("누락된 데이터가 표시됩니다")
             else:
                 self.label_27.setText("누락된 데이터 없습니다.")
             model_omission = PandasModel(omission)
@@ -311,6 +312,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
             self.tableView_3.horizontalHeader().setStretchLastSection(True)
             self.tableView_3.resizeColumnsToContents()
             self.stackedWidget.setCurrentIndex(8)
+            self.next_btn.setEnabled(False)
     
     # 상세분할 파일 선택 부분
     def browse_specific(self):
@@ -319,7 +321,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
 
         try:
             sheet_names = read_excel_safely(file_path)
-            self.next_btn.setEnabled(True)
+            # self.next_btn.setEnabled(True)
             self.file_path = file_path
             print(self.file_path)
             self.start_div_btn.setEnabled(True)
@@ -367,7 +369,8 @@ class MainWindow(QMainWindow, Ui_MainWindow):
             QMessageBox.warning(self, "입력 오류", "모든 항목을 선택(입력) 해주세요")
         else:
             divide_spe_location(self.selected_columns, self.location_text_2)
-            self.ask_return_to_menu(self)
+            self.ask_return_to_menu()
+            self.next_btn.setEnabled(True)
 
     def check_browse(self):
         file_path, _ = QFileDialog.getOpenFileName(self, "파일 선택")
@@ -399,6 +402,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
             child = self.scroll_layout_3.takeAt(0)
             if child.widget():
                 child.widget().deleteLater()
+        print(self.whole_sheet_3.currentText())
         sheet_names.remove(self.whole_sheet_3.currentText())
 
         self.sheet_checkboxes = []
@@ -436,8 +440,9 @@ class MainWindow(QMainWindow, Ui_MainWindow):
             return
         else:
             self.selected_stat = selected_stat
+            print(self.selected_stat)
             stat_to_excel(self.selected_stat, self.label_70)
-            self.ask_return_to_menu(self)
+            self.ask_return_to_menu()
             self.next_btn.setEnabled(True)
 
 
@@ -456,6 +461,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         if reply == QMessageBox.Yes:
             self.page_history.append(self.stackedWidget.currentIndex())
             self.stackedWidget.setCurrentIndex(1)
+            self.sheet_names = None
 
         else:
             pass
@@ -466,7 +472,9 @@ class MainWindow(QMainWindow, Ui_MainWindow):
 
     def go_next(self):
         current_index = self.stackedWidget.currentIndex()
+        print(current_index)
         if current_index == 1:
+            self.next_btn.setEnabled(True)
             current_index = self.stackedWidget.currentIndex()
             if self.divide_radio_btn.isChecked():
                 self.next_btn.setEnabled(True)
@@ -500,12 +508,18 @@ class MainWindow(QMainWindow, Ui_MainWindow):
             )
             if result == QMessageBox.Yes:
                 self.stackedWidget.setCurrentIndex(1)
+                self.sheet_names = None
             else:
                 pass
-        
+    
+        elif current_index in [0, 9]:
+            self.stackedWidget.setCurrentIndex(current_index + 1)
+            self.next_btn.setEnabled(True)
         else:
             self.stackedWidget.setCurrentIndex(current_index + 1)
+            self.next_btn.setEnabled(False)
             
+        print(f"current_index is {current_index}")
 
 
 
@@ -513,6 +527,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         print("back clicked")
         current_index = self.stackedWidget.currentIndex()
         if current_index in [2, 4, 9, 11]:
+            
             result = QMessageBox.question(
                 self,
                 "메뉴로 돌아가기",
@@ -522,10 +537,23 @@ class MainWindow(QMainWindow, Ui_MainWindow):
             if result == QMessageBox.Yes:
                 self.stackedWidget.setCurrentIndex(1)
                 self.next_btn.setEnabled(True)
+                self.sheet_names = None
             
+
+        elif current_index in [5, 6, 7, 8]:
+            result = QMessageBox.question(
+                self,
+                "지역 선택으로 돌아가기",
+                "돌아가서 상세 지역을 다시 구분합니다.",
+                QMessageBox.Yes | QMessageBox.No
+            )
+            if result == QMessageBox.Yes:
+                self.stackedWidget.setCurrentIndex(4)
+            else:
+                pass            
         else:
             self.stackedWidget.setCurrentIndex(current_index - 1)
-
+        print(f"current index is {current_index}")
     def go_exit(self):
         print("Quit")
         QApplication.quit()
