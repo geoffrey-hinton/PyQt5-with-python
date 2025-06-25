@@ -90,6 +90,9 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         self.seoul_btn.clicked.connect(lambda: self.open_location_window("서울"))
         self.gyeong_btn.clicked.connect(lambda: self.open_location_window("경기"))
         self.busan_btn.clicked.connect(lambda: self.open_location_window("부산"))
+        self.ulsan_btn.clicked.connect(lambda: self.open_location_window("울산"))
+        self.gwangju_btn.clicked.connect(lambda: self.open_location_window("광주"))
+        self.incheon_btn.clicked.connect(lambda: self.open_location_window("인천"))
         self.btn_browse_3.clicked.connect(self.browse_specific)
         self.start_div_btn.clicked.connect(self.start_div)
 
@@ -235,9 +238,12 @@ class MainWindow(QMainWindow, Ui_MainWindow):
             sheets_dict = pd.read_excel(self.lineEdit_path_2.text(), self.selected_sheets, skiprows = 2, dtype = str)
             
 
-
+            whole_df = whole_df.loc[:, ~whole_df.columns.str.startswith("Unnamed")]
+            
             sheets_df = pd.concat(sheets_dict.values(), axis = 0, ignore_index = True)
+            sheets_df = sheets_df.loc[:, ~sheets_df.columns.str.startswith("Unnmaed")]
             col_li = whole_df.columns.to_list()
+            
 
             merged_df = whole_df.merge(sheets_df, how = "outer", on = col_li, indicator = True)
             
@@ -245,13 +251,13 @@ class MainWindow(QMainWindow, Ui_MainWindow):
             duplicates = sheets_df[sheets_df.duplicated(subset = col_li, keep = False)]
             duplicates = duplicates.loc[:, ~duplicates.columns.str.startswith("Unnamed")]
             if not duplicates.empty:
-                self.label_26.setText("중복된 데이터가 표시됩니다.")
-                pass
+
+                self.label_27.setText("중복된 데이터가 표시됩니다.")
+                model_dup = PandasModel(duplicates)
+                self.tableView_2.setModel(model_dup)
             else:
-                self.label_26.setText("중복된 데이터 없습니다.")
+                self.label_27.setText("중복된 데이터 없습니다.")
                     
-            model_dup = PandasModel(duplicates)
-            self.tableView_2.setModel(model_dup)
             
             
 
@@ -260,11 +266,13 @@ class MainWindow(QMainWindow, Ui_MainWindow):
             omission = omission.loc[:, ~omission.columns.str.startswith("Unnamed")]
 
             if not omission.empty:
-                self.label_27.setExt("누락된 데이터가 표시됩니다")
+                print(omission)
+                self.label_26.setText("누락된 데이터가 표시됩니다")
+                model_omission = PandasModel(omission)
+                self.tableView.setModel(model_omission)
             else:
-                self.label_27.setText("누락된 데이터 없습니다.")
-            model_omission = PandasModel(omission)
-            self.tableView.setModel(model_omission)
+                self.label_26.setText("누락된 데이터 없습니다.")
+            
         self.next_btn.setEnabled(True)
     # 분할
 
@@ -285,6 +293,15 @@ class MainWindow(QMainWindow, Ui_MainWindow):
             self.stackedWidget.setCurrentIndex(5)
         elif location == "부산":
             self.stackedWidget.setCurrentIndex(7)
+        elif location == "대구":
+            self.stakcedWidget.setCurrentIndex(8)
+        elif location == "울산":
+            self.stackedWidget.setCurrentIndex(9)
+        elif location == "인천":
+            self.stacekdWidget.setCurrentIndex(11)
+        elif location == "광주":
+            self.stackedWidget.setCurrentIndex(10)
+
         dialog = DistrictGroupApp(location)
         if dialog.exec_() == QDialog.Accepted:
             result = dialog.group_result
@@ -526,7 +543,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
     def go_back(self):
         print("back clicked")
         current_index = self.stackedWidget.currentIndex()
-        if current_index in [2, 4, 9, 11]:
+        if current_index in [2, 4, 12, 13]:
             
             result = QMessageBox.question(
                 self,
@@ -540,7 +557,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
                 self.sheet_names = None
             
 
-        elif current_index in [5, 6, 7, 8]:
+        elif current_index in [5, 6, 7, 8, 9, 10, 11]:
             result = QMessageBox.question(
                 self,
                 "지역 선택으로 돌아가기",
